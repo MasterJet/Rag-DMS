@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for storing user data and other application data
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: app_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - app_network
+
+  # FastAPI Backend for handling authentication, indexing, and searching
+  app-api:
+    build:
+      context: ./fastapi
+    container_name: app-api
+    environment:
+      DATABASE_URL: postgresql://admin:adminpassword@postgres:5432/app_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi:/app  
+    depends_on:
+      - postgres
+    networks:
+      - app_network
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+      
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend  
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: "npm run dev"
+    depends_on:
+      - app-api
+    networks:
+      - app_network
+
+# Volumes for PostgreSQL data persistence
+volumes:
+  postgres_data:
+
+# Networks to connect the services
+networks:
+  app_network:
+    driver: bridge
